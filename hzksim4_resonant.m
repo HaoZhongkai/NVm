@@ -1,0 +1,23 @@
+%研究共振时调制信号的点列特性
+num_period = 500;
+wl = 2.698;
+A = 1e-3*20;
+B = 1e-3*25;
+th = pi/180*75;
+gama = 0.029;
+N = 89;
+c = sqrt(gama^2+2*gama*cos(th)+1);
+alpha = (1:2:2*num_period-1)*pi/(1+c);
+beta = c*alpha;
+mx = gama*sin(th)/sqrt(gama^2+2*gama*cos(th)+1);
+mz = (gama*cos(th)+1)/sqrt(gama^2+2*gama*cos(th)+1);
+beta1 = c*alpha1;
+phi = acos(cos(alpha).*cos(beta)-mz*sin(alpha).*sin(beta));
+phi1 = acos((1-mz)*cos((c-1)*alpha/2).^2-1);
+phi2 = pi-abs(gama*sin(th)*cos((c-1)*alpha/2));
+y1 = sin(N*(phi)/2).^2;
+y2 = sin(N*(phi2)/2).^2;
+figure;
+hold on;
+plot(alpha,2*y1);
+plot(alpha,2*y2,'color','r');
