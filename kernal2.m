@@ -1,88 +1,103 @@
-classdef kernal
-    properties 
+%记得信号复原的步骤为:
+%1.加中心信号 2.衰减调制 3.加噪声
+%可以省略某些步骤，但是不要反
+%接受A,B输入
+classdef Kernal2<handle
+    properties
         A
         B
+        wl
+        N
+        t
+        Px
     end
     methods
-        function self = kernal(A,B)
-            self.A = A;
-            self.B = B;
+        function self = Kernal2(A0,B0,wl,N,t)
+            self.A = A0;
+            self.B = B0;
+            self.wl = wl;
+            self.N = N;
+            self.t = t;
         end
-        function wb = get_wb(self)
-            global wl;
-            wb = sqrt((2*pi*self.A+wl)^2+(2*pi*self.B)^2);
+%         Px的get属性
+       
+%         function set.Px(self,Px)
+%             self.Px = Px;
+%         end
+        %-----
+      
+        function wh = get_wh(self)
+            wh = sqrt((2*pi*self.A+self.wl).^2+(2*pi*self.B).^2);
         end
-        function mx = get_mx(self)
-            global wl;
-            mx = (2*pi*self.B)/sqrt((2*pi*self.A+wl)^2+(2*pi*self.B)^2);
+        
+        function th = get_th(self)
+            th = atan(self.B/(self.A*2*pi+self.wl));
         end
+        
         function mz = get_mz(self)
-            global wl;
-            mz = (2*pi*self.A+wl)/sqrt((2*pi*self.A+wl)^2+(2*pi*self.B)^2);
-        end
-        function a = get_alpha(self,tao)
-            a = get_wb(self)*tao;
-        end
-        function p = phi(self,tao)
-            global wl;
-            p = acos(cos(self.get_alpha(tao)).*cos(wl*tao)...
-                -self.get_mz()*sin(self.get_alpha(tao)).*...
-                sin(wl*tao));
-        end
-        function M = get_M(self,tao)
-            global N wl
-            mx = self.get_mx();
-            mz = self.get_mz();
-            alpha = self.get_alpha(tao);
-            beta = wl*tao;
-            phi = self.phi(tao);
-            M = 1-mx^2*(1-cos(alpha)).*(1-cos(beta))./(1+cos(phi)).*...
-                (sin(N*phi/2).^2);
-        end
-        %%% 计算参数
-        function m_der = get_m_der(self)
-            mx = self.get_mx();
-            mz = self.get_mz();
+            A0 = 2*pi*self.A;
             wb = self.get_wb();
-            m_der = [mx^2/wb,-mx*mz/wb;-mx*mz/wb,mz^2/wb];
+            mz = (self.wl+A0)./wb;
         end
-        %%%计算mz,mx分别对A,B的偏导数
-        function alpha_der = get_alpha_der(self,tao)
-            alpha_der = tao*[get_mz(self),get_mx(self)];
-        end
-        %%%计算alpha对A,B的导数，第一行是对A,第二行是对B
-        function phi_der = get_phi_der(self,tao)
-            global wl
-            mz = get_mz(self);
-            mx = get_mx(self);
-            alpha = self.get_alpha(tao);
-            beta = wl*tao;
-            phi = self.phi(tao);
+        
+        function mx = get_mx(self)
+            B0 = 2*pi*self.B;
             wb = self.get_wb();
-            phi_der = ((sin(alpha).*cos(beta)+mz*cos(alpha)...
-                .*sin(beta)).*tao./sin(phi))*[mz,mx]-((mx*sin(alpha)...
-                .*sin(beta))./(wb*sin(phi)))*[mx,-mz];
+            mx = B0./wb;
         end
-        %%%计算phi对A,B的偏导数,第一行为对A,第二行为对B
-        function M_der = get_M_der(self,tao)
-            global N wl;
-            mx = get_mx(self);
-            alpha = self.get_alpha(tao);
-            beta = wl*tao;
-            phi = self.phi(tao);
-            m_der = get_m_der(self);
-            alpha_der = get_alpha_der(self,tao);
-            phi_der = get_phi_der(self,tao);
-            M1 = mx^2*sin(alpha).*(1-cos(beta)).*(sin(N*phi/2)...
-                .^2)./(1+cos(phi));
-            M2 = mx^2*(1-cos(alpha)).*(1-cos(beta)).*(sin(phi).*...
-                (1-cos(N*phi))./(1+cos(phi))+N*sin(phi))./(2*(1+...
-                cos(phi)));
-            M_der =  2*mx*((1-cos(alpha)).*(1-cos(beta)).*(...
-                sin(N*phi/2).^2)./(1+cos(phi)))*[m_der(2,1),m_der(2,2)]+...
-                [alpha_der(:,1).*M1,alpha_der(:,2).*M1]+...
-                [phi_der(:,1).*M2,phi_der(:,2).*M2];
+        
+        function wb = get_wb(self)
+            wb = sqrt((2*pi*self.A+self.wl).^2+(2*pi*self.B).^2);
+        end
+        
+        function M = get_M(self)
+            wb = self.get_wb();
+            mz = self.get_mz();
+            mx = self.get_mx();
+            beta = self.t*self.wl;
+            M = ones(length(self.t),1);
+            for i = 1:length(self.get_wh())
+                alpha = self.t*wb(i);
+                Cphi = cos(alpha).*cos(beta)-mz(i)*sin(alpha).*sin(beta);
+                phi = acos(Cphi);
+                n01 = mx(i)^2*(1-cos(alpha)).*(1-cos(beta))./(1+Cphi);
+                M = M.*(1-n01.*sin(self.N*phi/2).^2);
+            end
+        end
+        function get_Px(self)
+            M = self.get_M();
+            self.Px = (1+M)/2;
+        end
+        
+        %加衰减调制信号
+        function Modulate(self,Ta,Tb)
+            M = 2*self.Px-1;
+            self.Px = 1/2*M.*exp(-2*self.N*self.t/Ta)+1/3+1/6*exp...
+                (-2*self.N*self.t/Tb);
+        end
+        %加误差
+        function Addnoise(self,e)
+            ep = e*randn(size(self.Px));
+            self.Px = min(self.Px+ep,1);
+        end
+        %加中心峰信号,n为中心核的个数,
+        function AddCentralSignal(self,n,wh_max)
+            M = self.get_M();
+            wh_c = wh_max*rand(1,n);
+            th_c = pi*rand(1,n);
+            Px_center = Get_Px(self.t,wh_c,th_c,self.wl,self.N);
+            M_center = 2*Px_center-1;
+            M = M.*M_center;
+            self.Px = (1+M)/2;
         end
     end
 end
-    
+
+                
+
+                
+                
+            
+        
+        
+        
