@@ -51,7 +51,7 @@ Init_param = [0.0783,0.04;0.04,0.034;0.0323,0.031;-0.013,0.018;-0.0222,...
 
  Community = Population(S0,N0,N_c,wh_max,fitfun);
 %set initial value                                %设定初始值
- Community.SetInit(Init_param);
+%  Community.SetInit(Init_param);
 
 %%   种群的演化
 running_fitness = [];
